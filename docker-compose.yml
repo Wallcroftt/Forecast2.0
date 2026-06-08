@@ -1,0 +1,37 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: weather_mongo
+    restart: always
+    ports:
+      - "27050:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "-u", "${MONGO_ROOT_USER}", "-p", "${MONGO_ROOT_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  etl:
+    build: .
+    container_name: weather_etl
+    depends_on:
+      mongo:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: ["python", "-u", "main.py"]
+    restart: on-failure
+
+volumes:
+  mongo_data:
